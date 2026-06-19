@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from enum import Enum
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 from sharklocal import (
@@ -119,7 +120,15 @@ async def capture(host: str, output: Path) -> None:
             captures[level] = {"mqtt": await _capture_mqtt(mqtt)}
             for name, client in rest_clients.items():
                 captures[level][name] = await _capture_rest(client)
-            print(f"Captured {level}.")
+            errors = {
+                name: result["error"]
+                for name, result in captures[level].items()
+                if "error" in result
+            }
+            if errors:
+                print(f"Captured {level} with transport errors: {errors}")
+            else:
+                print(f"Captured {level}.")
     finally:
         for client in rest_clients.values():
             await client.close()
@@ -153,6 +162,10 @@ def main() -> None:
     )
     args = parser.parse_args()
     output = args.output or Path(f"vacuum-levels-{args.host}.json")
+    if sys.platform == "win32":
+        # aiomqtt uses add_reader/add_writer, which the default Windows
+        # ProactorEventLoop does not implement.
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(capture(args.host, output))
 
 
