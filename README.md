@@ -81,8 +81,9 @@ with host, IP, MAC, and SSID fields redacted.
 
 ### Vacuum-level protocol capture
 
-The guided research tool records local REST and MQTT status at each app level
-and reports which raw fields changed:
+The guided research tool records local REST v1 (HTTPS/443), REST v2
+(HTTP/8080), and MQTT status at each app level and reports which raw fields
+changed:
 
 ```powershell
 py -m venv .capture-venv

@@ -98,7 +98,10 @@ async def _capture_mqtt(client: MQTTVacuumClient) -> dict[str, Any]:
 
 async def capture(host: str, output: Path) -> None:
     """Guide the user through three app settings and save comparison data."""
-    rest = RESTVacuumClient(host, load_rest_mapping("sharkiq_v1"))
+    rest_clients = {
+        "rest_v1": RESTVacuumClient(host, load_rest_mapping("sharkiq_v1")),
+        "rest_v2": RESTVacuumClient(host, load_rest_mapping("sharkiq_v2")),
+    }
     mqtt = MQTTVacuumClient(host, load_mqtt_mapping("sharkiq_v1"))
     captures: dict[str, Any] = {}
 
@@ -113,13 +116,13 @@ async def capture(host: str, output: Path) -> None:
                 f"Set the vacuum to {level} in the Shark app, wait 5 seconds, "
                 "then press Enter... ",
             )
-            captures[level] = {
-                "mqtt": await _capture_mqtt(mqtt),
-                "rest": await _capture_rest(rest),
-            }
+            captures[level] = {"mqtt": await _capture_mqtt(mqtt)}
+            for name, client in rest_clients.items():
+                captures[level][name] = await _capture_rest(client)
             print(f"Captured {level}.")
     finally:
-        await rest.close()
+        for client in rest_clients.values():
+            await client.close()
 
     safe_captures = _json_safe(captures)
     report = {
@@ -128,7 +131,8 @@ async def capture(host: str, output: Path) -> None:
         "captures": safe_captures,
         "changed_fields": {
             "mqtt": _changed_fields(safe_captures, "mqtt"),
-            "rest": _changed_fields(safe_captures, "rest"),
+            "rest_v1": _changed_fields(safe_captures, "rest_v1"),
+            "rest_v2": _changed_fields(safe_captures, "rest_v2"),
         },
     }
     output.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
