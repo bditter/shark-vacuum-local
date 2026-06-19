@@ -1,9 +1,22 @@
 # Shark Vacuum Local
 
+<p align="center">
+  <img src="custom_components/shark_vacuum_local/brand/logo@2x.png"
+       alt="Shark Vacuum Local"
+       width="256">
+</p>
+
+[![GitHub Release](https://img.shields.io/github/v/release/bditter/shark-vacuum-local?style=for-the-badge)](https://github.com/bditter/shark-vacuum-local/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?style=for-the-badge&logo=home-assistant-community-store)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Integration-18BCF2?style=for-the-badge&logo=home-assistant&logoColor=white)](https://www.home-assistant.io/)
+[![License: MIT](https://img.shields.io/github/license/bditter/shark-vacuum-local?style=for-the-badge)](LICENSE)
+
+[![GitHub Stars](https://img.shields.io/github/stars/bditter/shark-vacuum-local?style=flat-square)](https://github.com/bditter/shark-vacuum-local/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/bditter/shark-vacuum-local?style=flat-square)](https://github.com/bditter/shark-vacuum-local/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/bditter/shark-vacuum-local?style=flat-square)](https://github.com/bditter/shark-vacuum-local/commits/main)
+
 An unofficial Home Assistant integration for direct local control of compatible
 Shark robot vacuums over LAN REST and MQTT interfaces.
-
-Repository: <https://github.com/bditter/shark-vacuum-local>
 
 ## Installation
 
