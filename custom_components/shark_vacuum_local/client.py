@@ -1,4 +1,4 @@
-"""Client construction and experimental local fan-speed control."""
+"""Client construction and experimental local vacuum-level control."""
 from __future__ import annotations
 
 from typing import Any
@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from sharklocal import VacuumClient
 
-from .const import FAN_SPEED_VALUES
+from .const import VACUUM_LEVEL_VALUES
 
 
 def create_vacuum_client(host: str, mapping: str, use_mqtt: bool) -> VacuumClient:
@@ -23,7 +23,7 @@ def create_vacuum_client(host: str, mapping: str, use_mqtt: bool) -> VacuumClien
     )
 
 
-class LocalFanSpeedClient:
+class LocalVacuumLevelClient:
     """Send the undocumented Power_Mode value to a configurable local route."""
 
     def __init__(
@@ -38,21 +38,21 @@ class LocalFanSpeedClient:
         self._host = host
         self._path_template = path_template
 
-    async def set_speed(self, speed: str) -> None:
-        """Set Eco, Normal, or Max using the configured local REST path."""
-        if speed not in FAN_SPEED_VALUES:
-            raise HomeAssistantError(f"Unsupported fan speed: {speed}")
+    async def set_level(self, level: str) -> None:
+        """Set Low, Normal, or Max using the configured local REST path."""
+        if level not in VACUUM_LEVEL_VALUES:
+            raise HomeAssistantError(f"Unsupported vacuum level: {level}")
 
         try:
             path = self._path_template.format(
-                value=FAN_SPEED_VALUES[speed], speed=speed.lower()
+                value=VACUUM_LEVEL_VALUES[level], speed=level.lower()
             )
         except (KeyError, ValueError) as err:
             raise HomeAssistantError(
-                "Fan speed path may only use {value} and {speed} placeholders"
+                "Vacuum level path may only use {value} and {speed} placeholders"
             ) from err
         if not path.startswith("/") or path.startswith("//"):
-            raise HomeAssistantError("Fan speed path must begin with one slash")
+            raise HomeAssistantError("Vacuum level path must begin with one slash")
 
         mapping = self._vacuum.active_rest_mapping
         if mapping == "sharkiq_v2":
@@ -61,7 +61,7 @@ class LocalFanSpeedClient:
             base_url = f"https://{self._host}:443"
         else:
             raise HomeAssistantError(
-                "Fan speed requires a reachable local REST interface"
+                "Vacuum level requires a reachable local REST interface"
             )
 
         try:
@@ -69,12 +69,12 @@ class LocalFanSpeedClient:
                 body = await response.text()
                 if response.status >= 400:
                     raise HomeAssistantError(
-                        f"Fan speed command returned HTTP {response.status} "
+                        f"Vacuum level command returned HTTP {response.status} "
                         f"from {path}: {body[:200]}"
                     )
         except ClientError as err:
             raise HomeAssistantError(
-                f"Could not send fan speed to {self._host}: {err}"
+                f"Could not send vacuum level to {self._host}: {err}"
             ) from err
 
 

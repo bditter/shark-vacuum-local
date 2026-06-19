@@ -44,6 +44,7 @@ async def async_get_config_entry_diagnostics(
             "options": dict(entry.options),
         },
         "transport": fan_speed_debug_info(coordinator.client),
+        "vacuum_level": coordinator.vacuum_level,
     }
     if data is not None:
         diagnostics["status"] = {

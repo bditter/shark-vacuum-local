@@ -16,7 +16,8 @@ Research date: 2026-06-19.
 - The local MQTT broker uses port 1883, command topic `/qfeel/PbInput`, status
   topic `/qfeel/PbOutput`, and base64-wrapped protobuf messages.
 - Public Shark cloud SDKs name the property `Power_Mode` and define Normal=0,
-  Eco=1, Max=2. They can read and write it through Ayla's cloud property API.
+  Eco=1, Max=2. The Shark app presents Eco as Low. The SDKs can read and write
+  the value through Ayla's cloud property API.
 
 ## Not confirmed
 

@@ -29,26 +29,27 @@ To change a vacuum's IP address later, open its integration entry menu and
 select **Reconfigure**. The current address is prefilled and the new address is
 tested before the entry is updated and reloaded.
 
-## Fan speed
+## Vacuum level
 
-The vacuum entity exposes Home Assistant's standard fan speed control with
-`Eco`, `Normal`, and `Max`. The values are confirmed by the Shark cloud SDKs:
+Each vacuum has a **Vacuum level** select entity with `Low`, `Normal`, and
+`Max`. The local interface cannot report the current level, so the selector is
+optimistic and resets to `Normal` whenever the integration entry is loaded.
+The selected level is sent immediately before every start command.
+
+The values are confirmed by the Shark cloud SDKs; the app's `Low` label maps to
+the SDK's `Eco` value:
 
 | Home Assistant | Shark `Power_Mode` value |
 |---|---:|
 | Normal | 0 |
-| Eco | 1 |
+| Low | 1 |
 | Max | 2 |
-
-The local status payload does not expose `Power_Mode`, so fan speed is
-optimistic: Home Assistant displays the last value successfully sent during the
-current integration session.
 
 The local command route is not documented publicly. This integration defaults
 to `/set/power_mode?mode={value}` and deliberately makes it editable under the
 integration's **Configure** dialog. The template accepts `{value}` (0, 1, 2)
-and `{speed}` (`normal`, `eco`, `max`). An HTTP error is surfaced to the service
-caller and logged; it is never treated as a successful setting.
+and `{speed}` (`normal`, `low`, `max`). If a level command fails, the failure is
+logged but the cleaning start command is still sent.
 
 ## Local transports
 

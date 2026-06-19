@@ -16,7 +16,7 @@ from sharklocal import (
 )
 from sharklocal.models import DeviceInfo, VacuumStatus
 
-from .const import DOMAIN
+from .const import DEFAULT_VACUUM_LEVEL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,6 +56,9 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         self.client = client
         self.entry_id = entry_id
         self.host = host
+        # Power_Mode cannot be read locally. This optimistic selection resets
+        # to Normal whenever the config entry is loaded, as documented.
+        self.vacuum_level = DEFAULT_VACUUM_LEVEL
         # Refresh Wi-Fi info roughly every 5 minutes regardless of poll rate.
         # Faster polling shouldn't mean we hammer wifi_status too — that endpoint
         # is heavier than /get/status and the data (RSSI, IP) rarely changes.

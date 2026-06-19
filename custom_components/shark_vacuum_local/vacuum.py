@@ -17,13 +17,12 @@ from homeassistant.exceptions import HomeAssistantError
 from sharklocal import SharklocalError
 from sharklocal.models import VacuumMode
 
-from .client import LocalFanSpeedClient, fan_speed_debug_info
+from .client import LocalVacuumLevelClient, fan_speed_debug_info
 from .const import (
     CONF_FAN_SPEED_PATH,
     CONF_NAME,
     DEFAULT_FAN_SPEED_PATH,
     DOMAIN,
-    FAN_SPEED_VALUES,
 )
 from .coordinator import SharkCoordinator
 from .entity import SharkBaseEntity
@@ -54,7 +53,7 @@ async def async_setup_entry(
             SharkVacuum(
                 coordinator,
                 entry.data[CONF_NAME],
-                LocalFanSpeedClient(
+                LocalVacuumLevelClient(
                     hass,
                     coordinator.client,
                     coordinator.host,
@@ -77,23 +76,18 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity):
         | VacuumEntityFeature.STOP
         | VacuumEntityFeature.PAUSE
         | VacuumEntityFeature.RETURN_HOME
-        | VacuumEntityFeature.FAN_SPEED
     )
-    _attr_fan_speed_list = list(FAN_SPEED_VALUES)
 
     def __init__(
         self,
         coordinator: SharkCoordinator,
         entry_title: str,
-        fan_client: LocalFanSpeedClient,
+        level_client: LocalVacuumLevelClient,
     ) -> None:
         """Initialize."""
         super().__init__(coordinator, entry_title)
         self._attr_unique_id = f"{coordinator.unique_id}_vacuum"
-        self._fan_client = fan_client
-        # The local status response does not expose Power_Mode. Retain the last
-        # successfully commanded value so HA can give useful optimistic state.
-        self._attr_fan_speed = None
+        self._level_client = level_client
 
     @property
     def activity(self) -> VacuumActivity | None:
@@ -113,28 +107,24 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity):
             "shark_mode": status.mode.value if status.mode else None,
             "charging": status.charging,
             "battery_level": status.battery_level,
+            "vacuum_level": self.coordinator.vacuum_level,
         }
         attributes.update(fan_speed_debug_info(self.coordinator.client))
         return attributes
 
-    async def async_set_fan_speed(
-        self, fan_speed: str, **kwargs: Any
-    ) -> None:
-        """Set the local Power_Mode value; the vacuum cannot report it back."""
-        try:
-            await self._fan_client.set_speed(fan_speed)
-        except HomeAssistantError:
-            _LOGGER.exception(
-                "Setting fan speed %s failed for %s",
-                fan_speed,
-                self.coordinator.host,
-            )
-            raise
-        self._attr_fan_speed = fan_speed
-        self.async_write_ha_state()
-
     async def async_start(self) -> None:
-        """Start cleaning."""
+        """Apply the selected vacuum level, then start cleaning."""
+        try:
+            await self._level_client.set_level(self.coordinator.vacuum_level)
+        except HomeAssistantError as err:
+            # Level control is experimental. Do not prevent a normal cleaning
+            # run when a model does not implement the configured local route.
+            _LOGGER.warning(
+                "Could not apply vacuum level %s to %s before start: %s",
+                self.coordinator.vacuum_level,
+                self.coordinator.host,
+                err,
+            )
         try:
             await self.coordinator.client.start_cleaning()
         except SharklocalError as err:
