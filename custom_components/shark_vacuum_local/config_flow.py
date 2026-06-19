@@ -52,7 +52,6 @@ async def _probe(host: str, mapping: str, use_mqtt: bool) -> str | None:
     client = create_vacuum_client(host, mapping, use_mqtt)
     try:
         async with client:
-            await client.probe()
             # Confirm we can read status — this is the cheapest call.
             await client.get_status()
             # Try to get the MAC for a stable unique ID. Best-effort.

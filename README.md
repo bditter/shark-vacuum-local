@@ -50,16 +50,15 @@ integration's **Configure** dialog. The template accepts `{value}` (0, 1, 2)
 and `{speed}` (`normal`, `eco`, `max`). An HTTP error is surfaced to the service
 caller and logged; it is never treated as a successful setting.
 
-## Local transport discovery
+## Local transports
 
-With the default `sharkiq_v1` setting, the integration asks `sharklocal>=0.2.0`
-to probe both public REST mappings:
+The default `sharkiq_v1` setting follows the downloaded Reference integration's
+connection behavior exactly:
 
-- `sharkiq_v1`: HTTPS port 443
-- `sharkiq_v2`: HTTP port 8080
-
-The higher-priority reachable mapping is used. MQTT port 1883 remains enabled
-when selected in the config flow.
+- REST uses the configured mapping on HTTPS port 443.
+- MQTT uses the same configured mapping on port 1883 when enabled.
+- REST is attempted first and MQTT is the library fallback when REST cannot
+  connect.
 
 See [PROTOCOL_RESEARCH.md](PROTOCOL_RESEARCH.md) for findings and limitations.
 

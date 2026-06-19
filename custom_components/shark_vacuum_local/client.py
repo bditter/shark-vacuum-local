@@ -11,20 +11,14 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from sharklocal import VacuumClient
 
-from .const import DEFAULT_MAPPING, FAN_SPEED_VALUES, REST_MAPPING_CANDIDATES
+from .const import FAN_SPEED_VALUES
 
 
 def create_vacuum_client(host: str, mapping: str, use_mqtt: bool) -> VacuumClient:
-    """Create a client, enabling upstream REST v2 discovery for the default map."""
-    rest_mappings: str | list[str]
-    if mapping == DEFAULT_MAPPING:
-        rest_mappings = REST_MAPPING_CANDIDATES
-    else:
-        rest_mappings = mapping
-
+    """Create a client using the Reference integration's transport contract."""
     return VacuumClient(
         host=host,
-        rest_mappings=rest_mappings,
+        rest_mappings=mapping,
         mqtt_mappings=mapping if use_mqtt else None,
     )
 

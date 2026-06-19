@@ -67,10 +67,6 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
 
     async def async_setup(self) -> None:
         """Initial setup: fetch device info so we can register a device in HA."""
-        # Multiple default REST mappings are loaded so sharklocal can select
-        # HTTPS/443 (v1) or direct HTTP/8080 (v2).
-        if len(self.client.transports_for("get_status")):
-            await self.client.probe()
         try:
             self._device_info = await self.client.get_device_info()
         except SharklocalError as err:

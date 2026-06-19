@@ -1,13 +1,13 @@
 {
   "domain": "shark_vacuum_local",
   "name": "Shark Vacuum Local",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/bditter/shark-vacuum-local",
   "issue_tracker": "https://github.com/bditter/shark-vacuum-local/issues",
   "codeowners": ["@bditter"],
   "config_flow": true,
   "dependencies": [],
-  "requirements": ["sharklocal>=0.2.0"],
+  "requirements": ["sharklocal>=0.1.0"],
   "iot_class": "local_polling",
   "integration_type": "device"
 }

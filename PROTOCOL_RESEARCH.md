@@ -8,8 +8,8 @@ Research date: 2026-06-19.
   integration have identical Python behavior. Upstream 0.3.x only changes the
   domain/branding and adds brand images.
 - `sharkiqlibs/sharklocal` 0.2.0 adds a second REST mapping on HTTP port 8080
-  and mapping priority/probing. Its public commands remain start, stop, dock,
-  explore, status, event log, robot ID, and Wi-Fi status.
+  and mapping priority/probing. Shark Vacuum Local deliberately retains the
+  Reference integration's single configured mapping instead of auto-probing.
 - The local REST routes published by `sharklocal` are `/get/status`,
   `/get/event_log`, `/get/robot_id`, `/get/wifi_status`, `/set/clean_all`,
   `/set/stop`, `/set/go_home`, and `/set/explore`.

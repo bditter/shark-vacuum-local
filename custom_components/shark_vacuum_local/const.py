@@ -23,10 +23,6 @@ DEFAULT_FAN_SPEED_PATH = "/set/power_mode?mode={value}"
 # use these integer values, although the local REST route is undocumented.
 FAN_SPEED_VALUES = {"Eco": 1, "Normal": 0, "Max": 2}
 
-# sharklocal 0.2.0 added the port-8080 REST implementation. Keep the v1 mapping
-# first for compatibility; probe() selects the reachable mapping by priority.
-REST_MAPPING_CANDIDATES = ["sharkiq_v1", "sharkiq_v2"]
-
 # Sanity bounds for the polling interval. 5s lower bound prevents users from
 # accidentally setting something pathological; 600s upper is "you basically
 # turned polling off but didn't want to disable the entity".
