@@ -78,3 +78,19 @@ send a command unless `--set-fan eco|normal|max` is explicitly supplied. Use
 Home Assistant also exposes a **Download diagnostics** action for the config
 entry. It includes the selected REST/MQTT mappings and raw status structure,
 with host, IP, MAC, and SSID fields redacted.
+
+### Vacuum-level protocol capture
+
+The guided research tool records local REST and MQTT status at each app level
+and reports which raw fields changed:
+
+```powershell
+py -m venv .capture-venv
+.\.capture-venv\Scripts\python -m pip install sharklocal==0.2.0
+.\.capture-venv\Scripts\python .\tools\capture_vacuum_levels.py 192.168.1.100
+```
+
+For each prompt, select Low, Normal, or Max in the official Shark app, wait five
+seconds, and press Enter. The generated `vacuum-levels-<IP>.json` file contains
+the complete samples and a field-by-field comparison. Run it separately for
+each vacuum because models or firmware may encode the levels differently.
