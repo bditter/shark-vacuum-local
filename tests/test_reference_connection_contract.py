@@ -87,5 +87,5 @@ def test_vacuum_level_defaults_to_normal_and_select_platform_is_loaded() -> None
     }
 
     assert assignments["DEFAULT_VACUUM_LEVEL"] == "Normal"
-    assert assignments["VACUUM_LEVEL_VALUES"] == {"Low": 1, "Normal": 0, "Max": 2}
+    assert assignments["VACUUM_LEVEL_VALUES"] == {"Eco": 1, "Normal": 0, "Max": 2}
     assert "select" in assignments["PLATFORMS"]

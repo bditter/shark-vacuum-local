@@ -35,7 +35,7 @@
         "description": "How often to poll the vacuum for status updates. Faster polling means fresher battery level and quicker response in the UI; slower polling means less network traffic. 30s is the recommended default. Range: 5\u2013600 seconds.",
         "data": {
           "scan_interval": "Polling interval (seconds)",
-          "fan_speed_path": "Experimental vacuum-level path (value token=0/1/2, speed token=normal/low/max)"
+          "fan_speed_path": "Experimental vacuum-level path (value token=0/1/2, speed token=normal/eco/max)"
         }
       }
     }

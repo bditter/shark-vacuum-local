@@ -39,7 +39,7 @@ class LocalVacuumLevelClient:
         self._path_template = path_template
 
     async def set_level(self, level: str) -> None:
-        """Set Low, Normal, or Max using the configured local REST path."""
+        """Set Eco, Normal, or Max using the configured local REST path."""
         if level not in VACUUM_LEVEL_VALUES:
             raise HomeAssistantError(f"Unsupported vacuum level: {level}")
 

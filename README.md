@@ -31,24 +31,23 @@ tested before the entry is updated and reloaded.
 
 ## Vacuum level
 
-Each vacuum has a **Vacuum level** select entity with `Low`, `Normal`, and
+Each vacuum has a **Vacuum level** select entity with `Eco`, `Normal`, and
 `Max`. The local interface cannot report the current level, so the selector is
 optimistic and resets to `Normal` whenever the integration entry is loaded.
 The selected level is sent immediately before every start command.
 
-The values are confirmed by the Shark cloud SDKs; the app's `Low` label maps to
-the SDK's `Eco` value:
+The values are defined by the established Shark cloud SDK:
 
 | Home Assistant | Shark `Power_Mode` value |
 |---|---:|
 | Normal | 0 |
-| Low | 1 |
+| Eco | 1 |
 | Max | 2 |
 
 The local command route is not documented publicly. This integration defaults
 to `/set/power_mode?mode={value}` and deliberately makes it editable under the
 integration's **Configure** dialog. The template accepts `{value}` (0, 1, 2)
-and `{speed}` (`normal`, `low`, `max`). If a level command fails, the failure is
+and `{speed}` (`normal`, `eco`, `max`). If a level command fails, the failure is
 logged but the cleaning start command is still sent.
 
 ## Local transports
@@ -91,7 +90,9 @@ py -m venv .capture-venv
 .\.capture-venv\Scripts\python .\tools\capture_vacuum_levels.py 192.168.1.100
 ```
 
-For each prompt, select Low, Normal, or Max in the official Shark app, wait five
-seconds, and press Enter. The generated `vacuum-levels-<IP>.json` file contains
+Start a normal cleaning run first. The tool waits until local MQTT reports
+`cleaning`. For each prompt, select Eco, Normal, or Max in the official Shark
+app, wait five seconds, and press Enter. The generated
+`vacuum-levels-<IP>.json` file contains
 the complete samples and a field-by-field comparison. Run it separately for
 each vacuum because models or firmware may encode the levels differently.

@@ -19,7 +19,7 @@ from sharklocal import (
 )
 
 
-LEVELS = ("Low", "Normal", "Max")
+LEVELS = ("Eco", "Normal", "Max")
 
 
 def _json_safe(value: Any) -> Any:
@@ -69,6 +69,37 @@ def _changed_fields(captures: dict[str, Any], transport: str) -> dict[str, Any]:
     return changed
 
 
+def _stable_mqtt_changes(captures: dict[str, Any]) -> dict[str, Any]:
+    """Return MQTT fields stable within a level but different across levels."""
+    stable_by_level: dict[str, dict[str, Any]] = {}
+    for level, capture in captures.items():
+        samples = capture.get("mqtt_samples", [])
+        flattened = [
+            _flatten(sample["raw"])
+            for sample in samples
+            if "raw" in sample
+        ]
+        if not flattened:
+            continue
+        paths = set.intersection(*(set(sample) for sample in flattened))
+        stable_by_level[level] = {
+            path: flattened[0][path]
+            for path in paths
+            if all(sample[path] == flattened[0][path] for sample in flattened[1:])
+        }
+
+    paths = sorted({path for fields in stable_by_level.values() for path in fields})
+    changed: dict[str, Any] = {}
+    for path in paths:
+        values = {
+            level: fields.get(path) for level, fields in stable_by_level.items()
+        }
+        serialized = {json.dumps(value, sort_keys=True) for value in values.values()}
+        if len(serialized) > 1:
+            changed[path] = values
+    return changed
+
+
 async def _capture_rest(client: RESTVacuumClient) -> dict[str, Any]:
     """Capture one REST status sample."""
     try:
@@ -108,16 +139,37 @@ async def capture(host: str, output: Path) -> None:
 
     print(f"Vacuum: {host}")
     print("This tool sends status requests only; it does not start the vacuum.")
-    print("Keep the vacuum in the same operating state for all three captures.\n")
+    print("The vacuum must remain cleaning for all three captures.\n")
 
     try:
+        while True:
+            preflight = await _capture_mqtt(mqtt)
+            mode = _json_safe(preflight.get("mode"))
+            if mode == "cleaning":
+                print("MQTT confirms the vacuum is cleaning.\n")
+                break
+            if "error" in preflight:
+                raise RuntimeError(f"MQTT preflight failed: {preflight['error']}")
+            await asyncio.to_thread(
+                input,
+                f"Vacuum currently reports {mode!r}. Start a normal cleaning "
+                "run, wait until suction starts, then press Enter... ",
+            )
+
         for level in LEVELS:
             await asyncio.to_thread(
                 input,
                 f"Set the vacuum to {level} in the Shark app, wait 5 seconds, "
                 "then press Enter... ",
             )
-            captures[level] = {"mqtt": await _capture_mqtt(mqtt)}
+            mqtt_samples = []
+            for _ in range(3):
+                mqtt_samples.append(await _capture_mqtt(mqtt))
+                await asyncio.sleep(0.5)
+            captures[level] = {
+                "mqtt": mqtt_samples[-1],
+                "mqtt_samples": mqtt_samples,
+            }
             for name, client in rest_clients.items():
                 captures[level][name] = await _capture_rest(client)
             errors = {
@@ -136,19 +188,22 @@ async def capture(host: str, output: Path) -> None:
     safe_captures = _json_safe(captures)
     report = {
         "host": host,
-        "instructions": "Low, Normal, and Max selected in official Shark app",
+        "instructions": "Eco, Normal, and Max selected while vacuum was cleaning",
         "captures": safe_captures,
         "changed_fields": {
             "mqtt": _changed_fields(safe_captures, "mqtt"),
             "rest_v1": _changed_fields(safe_captures, "rest_v1"),
             "rest_v2": _changed_fields(safe_captures, "rest_v2"),
         },
+        "stable_mqtt_changes": _stable_mqtt_changes(safe_captures),
     }
     output.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
 
     print(f"\nReport saved to {output.resolve()}")
     print("Fields that changed:")
     print(json.dumps(report["changed_fields"], indent=2, sort_keys=True))
+    print("\nStable MQTT fields that changed by level:")
+    print(json.dumps(report["stable_mqtt_changes"], indent=2, sort_keys=True))
 
 
 def main() -> None:
