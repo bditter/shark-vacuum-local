@@ -72,7 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 def _async_remove_generated_area_prefixes(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> None:
-    """Remove an area prefix from integration-generated entity IDs."""
+    """Remove area prefixes and any stale pre-migration states."""
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
     area_registry = ar.async_get(hass)
@@ -90,20 +90,30 @@ def _async_remove_generated_area_prefixes(
         area_prefix = f"{slugify(area.name)}_"
         entity_domain, object_id = entity.entity_id.split(".", 1)
         generated_prefix = f"{area_prefix}{vacuum_slug}"
-        if object_id != generated_prefix and not object_id.startswith(
+        has_area_prefix = object_id == generated_prefix or object_id.startswith(
             f"{generated_prefix}_"
-        ):
+        )
+        if has_area_prefix:
+            old_entity_id = entity.entity_id
+            object_id_without_area = object_id[len(area_prefix) :]
+            new_entity_id = entity_registry.async_get_available_entity_id(
+                entity_domain,
+                object_id_without_area,
+                current_entity_id=old_entity_id,
+            )
+            entity_registry.async_update_entity(
+                old_entity_id, new_entity_id=new_entity_id
+            )
+            hass.states.async_remove(old_entity_id)
             continue
 
-        object_id_without_area = object_id[len(area_prefix) :]
-        new_entity_id = entity_registry.async_get_available_entity_id(
-            entity_domain,
-            object_id_without_area,
-            current_entity_id=entity.entity_id,
-        )
-        entity_registry.async_update_entity(
-            entity.entity_id, new_entity_id=new_entity_id
-        )
+        # Home Assistant may have restored the old state before v1.2.1 renamed
+        # its registry entry. It has no registry row or unique ID, so remove it
+        # explicitly when the registered replacement is already present.
+        if object_id == vacuum_slug or object_id.startswith(f"{vacuum_slug}_"):
+            stale_entity_id = f"{entity_domain}.{area_prefix}{object_id}"
+            if entity_registry.async_get(stale_entity_id) is None:
+                hass.states.async_remove(stale_entity_id)
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:

@@ -172,3 +172,31 @@ def test_setup_migrates_only_generated_area_prefixes() -> None:
     assert calls.index("_async_remove_generated_area_prefixes") < calls.index(
         "async_forward_entry_setups"
     )
+
+
+def test_area_migration_removes_orphaned_states() -> None:
+    """Both newly renamed and previously orphaned state IDs are cleaned up."""
+    tree = _tree("__init__.py")
+    migration = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_async_remove_generated_area_prefixes"
+    )
+    removals = [
+        node
+        for node in ast.walk(migration)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_remove"
+    ]
+    assert len(removals) == 2
+
+    registry_checks = [
+        node
+        for node in ast.walk(migration)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_get"
+    ]
+    assert registry_checks, "Stale states must not replace registered entities"
