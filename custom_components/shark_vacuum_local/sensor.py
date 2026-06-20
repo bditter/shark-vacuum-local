@@ -92,6 +92,7 @@ class SharkSensor(SharkBaseEntity, SensorEntity):
         super().__init__(coordinator, entry_title)
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.unique_id}_{description.key}"
+        self._suggest_object_id(description.key)
 
     @property
     def native_value(self) -> Any:

@@ -6,6 +6,9 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import area_registry as ar, device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import slugify
 
 from sharklocal import SharklocalError
 
@@ -14,6 +17,7 @@ from .client import create_vacuum_client
 from .const import (
     CONF_HOST,
     CONF_MAPPING,
+    CONF_NAME,
     CONF_SCAN_INTERVAL,
     CONF_USE_MQTT,
     DEFAULT_MAPPING,
@@ -56,12 +60,50 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
+    _async_remove_generated_area_prefixes(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Apply options changes (e.g. new scan interval) live, no restart needed.
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     return True
+
+
+def _async_remove_generated_area_prefixes(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Remove an area prefix from integration-generated entity IDs."""
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    area_registry = ar.async_get(hass)
+    vacuum_slug = slugify(entry.data[CONF_NAME])
+
+    for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        device = (
+            device_registry.async_get(entity.device_id) if entity.device_id else None
+        )
+        area_id = entity.area_id or (device.area_id if device else None)
+        area = area_registry.async_get_area(area_id) if area_id else None
+        if area is None:
+            continue
+
+        area_prefix = f"{slugify(area.name)}_"
+        entity_domain, object_id = entity.entity_id.split(".", 1)
+        generated_prefix = f"{area_prefix}{vacuum_slug}"
+        if object_id != generated_prefix and not object_id.startswith(
+            f"{generated_prefix}_"
+        ):
+            continue
+
+        object_id_without_area = object_id[len(area_prefix) :]
+        new_entity_id = entity_registry.async_get_available_entity_id(
+            entity_domain,
+            object_id_without_area,
+            current_entity_id=entity.entity_id,
+        )
+        entity_registry.async_update_entity(
+            entity.entity_id, new_entity_id=new_entity_id
+        )
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:

@@ -34,6 +34,7 @@ class SharkNotificationVolume(SharkBaseEntity, NumberEntity):
     def __init__(self, coordinator: SharkCoordinator, entry_title: str) -> None:
         super().__init__(coordinator, entry_title)
         self._attr_unique_id = f"{coordinator.unique_id}_notification_volume"
+        self._suggest_object_id("notification_volume")
 
     @property
     def native_value(self) -> float:

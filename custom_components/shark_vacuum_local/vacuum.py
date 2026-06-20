@@ -73,6 +73,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity):
         """Initialize."""
         super().__init__(coordinator, entry_title)
         self._attr_unique_id = f"{coordinator.unique_id}_vacuum"
+        self._suggest_object_id()
 
     @property
     def activity(self) -> VacuumActivity | None:

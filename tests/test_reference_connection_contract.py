@@ -122,3 +122,53 @@ def test_captured_mqtt_payloads_are_preserved() -> None:
     assert setting(13, 1) == "OgJoAQ=="
     assert setting(2, 0) == "OgIQAA=="
     assert setting(2, 100) == "OgIQZA=="
+
+
+def test_entities_explicitly_suggest_ids_without_areas() -> None:
+    """Do not let HA's entity-ID generator add the assigned area name."""
+    base_tree = _tree("entity.py")
+    helper = next(
+        node
+        for node in ast.walk(base_tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "_suggest_object_id"
+    )
+    assignments = [
+        node
+        for node in ast.walk(helper)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and target.attr == "_attr_suggested_object_id"
+            for target in node.targets
+        )
+    ]
+    assert assignments
+
+    for filename in ("vacuum.py", "sensor.py", "select.py", "switch.py", "number.py"):
+        calls = [
+            node
+            for node in ast.walk(_tree(filename))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "_suggest_object_id"
+        ]
+        assert calls, f"{filename} does not set an explicit suggested object ID"
+
+
+def test_setup_migrates_only_generated_area_prefixes() -> None:
+    """Existing generated IDs are repaired before platforms are loaded."""
+    tree = _tree("__init__.py")
+    setup = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_setup_entry"
+    )
+    calls = [
+        node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
+        for node in ast.walk(setup)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, (ast.Attribute, ast.Name))
+    ]
+    assert calls.index("_async_remove_generated_area_prefixes") < calls.index(
+        "async_forward_entry_setups"
+    )

@@ -31,3 +31,9 @@ class SharkBaseEntity(CoordinatorEntity[SharkCoordinator]):
             sw_version=meta["firmware"],
             configuration_url=f"https://{coordinator.host}",
         )
+
+    def _suggest_object_id(self, suffix: str | None = None) -> None:
+        """Suggest an entity ID without Home Assistant's area prefix."""
+        self._attr_suggested_object_id = (
+            f"{self._entry_title} {suffix}" if suffix else self._entry_title
+        )

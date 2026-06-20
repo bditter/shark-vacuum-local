@@ -32,6 +32,7 @@ class SharkVacuumLevelSelect(SharkBaseEntity, SelectEntity):
         """Initialize the selector."""
         super().__init__(coordinator, entry_title)
         self._attr_unique_id = f"{coordinator.unique_id}_vacuum_level"
+        self._suggest_object_id("vacuum_level")
 
     @property
     def current_option(self) -> str:

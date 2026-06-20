@@ -29,6 +29,10 @@ To change a vacuum's IP address later, open its integration entry menu and
 select **Reconfigure**. The current address is prefilled and the new address is
 tested before the entry is updated and reloaded.
 
+Entity IDs use the configured vacuum name and entity name only. Assigned Home
+Assistant areas are deliberately excluded; for example, a vacuum named
+`Rosey` produces `select.rosey_vacuum_level` even when assigned to Hallway.
+
 ## Vacuum level
 
 Each vacuum has a **Vacuum level** select entity with `Eco`, `Normal`, and
