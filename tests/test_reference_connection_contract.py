@@ -48,29 +48,21 @@ def test_setup_does_not_eagerly_probe_transport_candidates() -> None:
         assert calls == [], f"Unexpected probe() call in {filename}"
 
 
-def test_vacuum_level_is_applied_before_start_without_blocking_start() -> None:
-    """Keep the level attempt separate and ahead of the cleaning command."""
+def test_vacuum_start_uses_confirmed_mqtt_level_command() -> None:
+    """The captured level command also starts or resumes cleaning."""
     tree = _tree("vacuum.py")
     start = next(
         node
         for node in ast.walk(tree)
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_start"
     )
-    tries = [node for node in start.body if isinstance(node, ast.Try)]
-
-    assert len(tries) == 2
-    first_calls = [
+    calls = [
         node.func.attr
-        for node in ast.walk(tries[0])
+        for node in ast.walk(start)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
     ]
-    second_calls = [
-        node.func.attr
-        for node in ast.walk(tries[1])
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-    ]
-    assert "set_level" in first_calls
-    assert "start_cleaning" in second_calls
+    assert "set_level" in calls
+    assert "start_cleaning" not in calls
 
 
 def test_vacuum_level_defaults_to_normal_and_select_platform_is_loaded() -> None:
@@ -87,5 +79,46 @@ def test_vacuum_level_defaults_to_normal_and_select_platform_is_loaded() -> None
     }
 
     assert assignments["DEFAULT_VACUUM_LEVEL"] == "Normal"
-    assert assignments["VACUUM_LEVEL_VALUES"] == {"Eco": 1, "Normal": 0, "Max": 2}
+    assert assignments["VACUUM_LEVEL_VALUES"] == {
+        "Eco": 50,
+        "Normal": 75,
+        "Max": 100,
+    }
     assert "select" in assignments["PLATFORMS"]
+    assert "switch" in assignments["PLATFORMS"]
+    assert "number" in assignments["PLATFORMS"]
+
+
+def test_captured_mqtt_payloads_are_preserved() -> None:
+    """Lock all user-verified commands to their exact base64 payloads."""
+    tree = _tree("client.py")
+    source = (INTEGRATION / "client.py").read_text(encoding="utf-8")
+    module = ast.Module(
+        body=[
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name in {"_varint", "setting_payload", "vacuum_level_payload"}
+        ],
+        type_ignores=[],
+    )
+    namespace = {
+        "base64": __import__("base64"),
+        "VACUUM_LEVEL_VALUES": {"Eco": 50, "Normal": 75, "Max": 100},
+        "HomeAssistantError": ValueError,
+    }
+    exec(compile(module, source, "exec"), namespace)
+
+    level = namespace["vacuum_level_payload"]
+    setting = namespace["setting_payload"]
+    assert level("Eco") == "OgQKAhAygAEJ"
+    assert level("Normal") == "OgQKAhBLgAEJ"
+    assert level("Max") == "OgQKAhBkgAEJ"
+    assert setting(8, 2) == "OgJAAg=="
+    assert setting(8, 1) == "OgJAAQ=="
+    assert setting(7, 2) == "OgI4Ag=="
+    assert setting(7, 1) == "OgI4AQ=="
+    assert setting(13, 2) == "OgJoAg=="
+    assert setting(13, 1) == "OgJoAQ=="
+    assert setting(2, 0) == "OgIQAA=="
+    assert setting(2, 100) == "OgIQZA=="

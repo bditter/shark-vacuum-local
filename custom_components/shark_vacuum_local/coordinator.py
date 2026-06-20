@@ -16,7 +16,8 @@ from sharklocal import (
 )
 from sharklocal.models import DeviceInfo, VacuumStatus
 
-from .const import DEFAULT_VACUUM_LEVEL, DOMAIN
+from .client import LocalMqttControlClient
+from .const import DEFAULT_NOTIFICATION_VOLUME, DEFAULT_VACUUM_LEVEL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +60,13 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         # Power_Mode cannot be read locally. This optimistic selection resets
         # to Normal whenever the config entry is loaded, as documented.
         self.vacuum_level = DEFAULT_VACUUM_LEVEL
+        self.notification_volume = DEFAULT_NOTIFICATION_VOLUME
+        self.settings: dict[str, bool] = {
+            "recharge_and_resume": False,
+            "save_power_level": False,
+            "evacuate_and_resume": False,
+        }
+        self.mqtt_control = LocalMqttControlClient(host)
         # Refresh Wi-Fi info roughly every 5 minutes regardless of poll rate.
         # Faster polling shouldn't mean we hammer wifi_status too — that endpoint
         # is heavier than /get/status and the data (RSSI, IP) rarely changes.

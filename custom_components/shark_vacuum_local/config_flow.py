@@ -22,11 +22,9 @@ from .client import create_vacuum_client
 
 from .const import (
     CONF_MAPPING,
-    CONF_FAN_SPEED_PATH,
     CONF_SCAN_INTERVAL,
     CONF_USE_MQTT,
     DEFAULT_MAPPING,
-    DEFAULT_FAN_SPEED_PATH,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_USE_MQTT,
     DOMAIN,
@@ -222,19 +220,12 @@ class SharkVacuumLocalOptionsFlow(OptionsFlow):
         current = self.config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
-        fan_speed_path = self.config_entry.options.get(
-            CONF_FAN_SPEED_PATH, DEFAULT_FAN_SPEED_PATH
-        )
-
         schema = vol.Schema(
             {
                 vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
                     cv.positive_int,
                     vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL),
                 ),
-                vol.Required(
-                    CONF_FAN_SPEED_PATH, default=fan_speed_path
-                ): vol.All(str, vol.Match(r"^/(?!/).+")),
             }
         )
 

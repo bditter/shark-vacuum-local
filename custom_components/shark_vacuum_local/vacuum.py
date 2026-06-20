@@ -17,13 +17,8 @@ from homeassistant.exceptions import HomeAssistantError
 from sharklocal import SharklocalError
 from sharklocal.models import VacuumMode
 
-from .client import LocalVacuumLevelClient, fan_speed_debug_info
-from .const import (
-    CONF_FAN_SPEED_PATH,
-    CONF_NAME,
-    DEFAULT_FAN_SPEED_PATH,
-    DOMAIN,
-)
+from .client import fan_speed_debug_info
+from .const import CONF_NAME, DOMAIN
 from .coordinator import SharkCoordinator
 from .entity import SharkBaseEntity
 
@@ -53,14 +48,6 @@ async def async_setup_entry(
             SharkVacuum(
                 coordinator,
                 entry.data[CONF_NAME],
-                LocalVacuumLevelClient(
-                    hass,
-                    coordinator.client,
-                    coordinator.host,
-                    entry.options.get(
-                        CONF_FAN_SPEED_PATH, DEFAULT_FAN_SPEED_PATH
-                    ),
-                ),
             )
         ]
     )
@@ -82,12 +69,10 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity):
         self,
         coordinator: SharkCoordinator,
         entry_title: str,
-        level_client: LocalVacuumLevelClient,
     ) -> None:
         """Initialize."""
         super().__init__(coordinator, entry_title)
         self._attr_unique_id = f"{coordinator.unique_id}_vacuum"
-        self._level_client = level_client
 
     @property
     def activity(self) -> VacuumActivity | None:
@@ -113,22 +98,18 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity):
         return attributes
 
     async def async_start(self) -> None:
-        """Apply the selected vacuum level, then start cleaning."""
+        """Start or resume cleaning with the selected vacuum level."""
         try:
-            await self._level_client.set_level(self.coordinator.vacuum_level)
+            await self.coordinator.mqtt_control.set_level(
+                self.coordinator.vacuum_level
+            )
         except HomeAssistantError as err:
-            # Level control is experimental. Do not prevent a normal cleaning
-            # run when a model does not implement the configured local route.
-            _LOGGER.warning(
-                "Could not apply vacuum level %s to %s before start: %s",
-                self.coordinator.vacuum_level,
+            _LOGGER.error(
+                "Could not start %s at vacuum level %s: %s",
                 self.coordinator.host,
+                self.coordinator.vacuum_level,
                 err,
             )
-        try:
-            await self.coordinator.client.start_cleaning()
-        except SharklocalError as err:
-            _LOGGER.error("start_cleaning failed for %s: %s", self.coordinator.host, err)
             return
         await self.coordinator.async_request_refresh()
 

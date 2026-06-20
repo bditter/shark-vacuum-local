@@ -15,22 +15,20 @@ Research date: 2026-06-19.
   `/set/stop`, `/set/go_home`, and `/set/explore`.
 - The local MQTT broker uses port 1883, command topic `/qfeel/PbInput`, status
   topic `/qfeel/PbOutput`, and base64-wrapped protobuf messages.
-- Public Shark cloud SDKs name the property `Power_Mode` and define Normal=0,
-  Eco=1, Max=2. The SDKs can read and write the value through Ayla's cloud
-  property API.
+- Captured and hardware-verified fan/start payloads are Eco
+  `OgQKAhAygAEJ`, Normal `OgQKAhBLgAEJ`, and Max `OgQKAhBkgAEJ`.
+- The local fan values are 50, 75, and 100. The Normal payload is also the
+  existing `sharklocal` start-cleaning command.
+- Captured settings use an outer protobuf field 7 with nested fields 8
+  (Recharge and Resume), 7 (Save Power Level), 13 (Evacuate and Resume), and
+  2 (Notification Volume, 0-100).
 
 ## Not confirmed
 
-- No inspected public source defines a local REST fan-speed route.
-- `sharklocal` does not decode fan speed from local REST or MQTT status.
-- `sharklocal` does not contain a fan-speed MQTT command payload, and its
-  schema-free decoder is insufficient to derive one safely.
-
-The default `/set/power_mode?mode={value}` route is therefore an isolated,
-editable hypothesis. A failed route produces an error and does not update the
-optimistic Home Assistant value. Capturing the SharkClean app's LAN request or
-obtaining the firmware's HTTP route table is needed to replace the hypothesis
-with a verified command.
+- The vacuum does not report fan speed or the captured preferences in its
+  decoded local status, so Home Assistant state is optimistic.
+- Extended Clean and Do Not Disturb did not produce distinguishable commands
+  in the supplied capture. They remain unavailable pending a focused capture.
 
 ## Sources inspected
 

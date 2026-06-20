@@ -1,17 +1,16 @@
-"""Client construction and experimental local vacuum-level control."""
+"""Client construction and confirmed local MQTT controls."""
 from __future__ import annotations
 
+import base64
 from typing import Any
 
-from aiohttp import ClientError
+import aiomqtt
 
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from sharklocal import VacuumClient
 
-from .const import VACUUM_LEVEL_VALUES
+from .const import MQTT_COMMAND_TOPIC, VACUUM_LEVEL_VALUES
 
 
 def create_vacuum_client(host: str, mapping: str, use_mqtt: bool) -> VacuumClient:
@@ -23,59 +22,55 @@ def create_vacuum_client(host: str, mapping: str, use_mqtt: bool) -> VacuumClien
     )
 
 
-class LocalVacuumLevelClient:
-    """Send the undocumented Power_Mode value to a configurable local route."""
+def _varint(value: int) -> bytes:
+    """Encode a non-negative protobuf varint."""
+    encoded = bytearray()
+    while value > 0x7F:
+        encoded.append((value & 0x7F) | 0x80)
+        value >>= 7
+    encoded.append(value)
+    return bytes(encoded)
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        vacuum: VacuumClient,
-        host: str,
-        path_template: str,
-    ) -> None:
-        self._session = async_get_clientsession(hass, verify_ssl=False)
-        self._vacuum = vacuum
+
+def setting_payload(field: int, value: int) -> str:
+    """Build the captured field-7 settings command envelope."""
+    nested = _varint(field << 3) + _varint(value)
+    raw = b"\x3a" + _varint(len(nested)) + nested
+    return base64.b64encode(raw).decode()
+
+
+def vacuum_level_payload(level: str) -> str:
+    """Build the captured start/level command."""
+    if level not in VACUUM_LEVEL_VALUES:
+        raise HomeAssistantError(f"Unsupported vacuum level: {level}")
+    nested = b"\x0a\x02\x10" + _varint(VACUUM_LEVEL_VALUES[level])
+    raw = b"\x3a" + _varint(len(nested)) + nested + b"\x80\x01\x09"
+    return base64.b64encode(raw).decode()
+
+
+class LocalMqttControlClient:
+    """Publish commands directly to the vacuum's unauthenticated MQTT broker."""
+
+    def __init__(self, host: str) -> None:
         self._host = host
-        self._path_template = path_template
+
+    async def publish(self, payload: str) -> None:
+        """Publish one base64-wrapped protobuf command."""
+        try:
+            async with aiomqtt.Client(self._host, port=1883) as client:
+                await client.publish(MQTT_COMMAND_TOPIC, payload=payload)
+        except Exception as err:
+            raise HomeAssistantError(
+                f"Could not send local MQTT command to {self._host}: {err}"
+            ) from err
 
     async def set_level(self, level: str) -> None:
-        """Set Eco, Normal, or Max using the configured local REST path."""
-        if level not in VACUUM_LEVEL_VALUES:
-            raise HomeAssistantError(f"Unsupported vacuum level: {level}")
+        """Start or resume cleaning at Eco, Normal, or Max."""
+        await self.publish(vacuum_level_payload(level))
 
-        try:
-            path = self._path_template.format(
-                value=VACUUM_LEVEL_VALUES[level], speed=level.lower()
-            )
-        except (KeyError, ValueError) as err:
-            raise HomeAssistantError(
-                "Vacuum level path may only use {value} and {speed} placeholders"
-            ) from err
-        if not path.startswith("/") or path.startswith("//"):
-            raise HomeAssistantError("Vacuum level path must begin with one slash")
-
-        mapping = self._vacuum.active_rest_mapping
-        if mapping == "sharkiq_v2":
-            base_url = f"http://{self._host}:8080"
-        elif mapping == "sharkiq_v1":
-            base_url = f"https://{self._host}:443"
-        else:
-            raise HomeAssistantError(
-                "Vacuum level requires a reachable local REST interface"
-            )
-
-        try:
-            async with self._session.get(f"{base_url}{path}") as response:
-                body = await response.text()
-                if response.status >= 400:
-                    raise HomeAssistantError(
-                        f"Vacuum level command returned HTTP {response.status} "
-                        f"from {path}: {body[:200]}"
-                    )
-        except ClientError as err:
-            raise HomeAssistantError(
-                f"Could not send vacuum level to {self._host}: {err}"
-            ) from err
+    async def set_setting(self, field: int, value: int) -> None:
+        """Set a captured local preference field."""
+        await self.publish(setting_payload(field, value))
 
 
 def fan_speed_debug_info(client: VacuumClient) -> dict[str, Any]:

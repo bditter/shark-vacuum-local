@@ -34,21 +34,29 @@ tested before the entry is updated and reloaded.
 Each vacuum has a **Vacuum level** select entity with `Eco`, `Normal`, and
 `Max`. The local interface cannot report the current level, so the selector is
 optimistic and resets to `Normal` whenever the integration entry is loaded.
-The selected level is sent immediately before every start command.
+The selected level is included in every start/resume command. Changing the
+selector while the vacuum is cleaning applies the new fan level immediately.
 
-The values are defined by the established Shark cloud SDK:
+The commands were captured from the official app and verified against a local
+vacuum:
 
-| Home Assistant | Shark `Power_Mode` value |
-|---|---:|
-| Normal | 0 |
-| Eco | 1 |
-| Max | 2 |
+| Home Assistant | Local fan value | MQTT payload |
+|---|---:|---|
+| Eco | 50 | `OgQKAhAygAEJ` |
+| Normal | 75 | `OgQKAhBLgAEJ` |
+| Max | 100 | `OgQKAhBkgAEJ` |
 
-The local command route is not documented publicly. This integration defaults
-to `/set/power_mode?mode={value}` and deliberately makes it editable under the
-integration's **Configure** dialog. The template accepts `{value}` (0, 1, 2)
-and `{speed}` (`normal`, `eco`, `max`). If a level command fails, the failure is
-logged but the cleaning start command is still sent.
+These write-only local MQTT commands do not expose the current level, so the
+select remains optimistic and defaults to Normal after an integration reload.
+
+## Local preferences
+
+The capture also confirmed optimistic controls for **Recharge and resume**,
+**Evacuate and resume**, **Save power level**, and **Notification volume**.
+Their current values cannot be queried from the local status response, so they
+default to off and 50 percent after a reload. Extended Clean and Do Not Disturb
+did not produce distinguishable local commands in the supplied capture and are
+not exposed yet.
 
 ## Local transports
 

@@ -65,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload so both polling and fan command options apply immediately."""
+    """Reload so polling options apply immediately."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
