@@ -32,8 +32,9 @@ tested before the entry is updated and reloaded.
 Entity IDs use the configured vacuum name and entity name only. Assigned Home
 Assistant areas are deliberately excluded; for example, a vacuum named
 `Rosey` produces `select.rosey_vacuum_level` even when assigned to Hallway.
-Version 1.2.2 also removes orphaned area-prefixed states left behind by the
-initial 1.2.1 entity-ID migration.
+Version 1.2.3 also removes orphaned area-prefixed states left behind by the
+initial 1.2.1 entity-ID migration, including states whose device and registry
+records were already deleted.
 
 ## Vacuum level
 

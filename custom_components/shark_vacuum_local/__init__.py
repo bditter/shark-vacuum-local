@@ -78,6 +78,35 @@ def _async_remove_generated_area_prefixes(
     area_registry = ar.async_get(hass)
     vacuum_slug = slugify(entry.data[CONF_NAME])
 
+    # A v1.2.1 orphan may remain after its device and registry row have already
+    # been deleted. Match only this integration's known entity-ID endings for
+    # the configured vacuum, and never remove a registered entity.
+    entity_suffixes = {
+        "vacuum": ("",),
+        "sensor": ("battery", "rssi", "ssid", "ip_address"),
+        "select": ("vacuum_level",),
+        "switch": (
+            "recharge_and_resume",
+            "evacuate_and_resume",
+            "save_power_level",
+        ),
+        "number": ("notification_volume",),
+    }
+    for state in tuple(hass.states.async_all()):
+        state_domain, object_id = state.entity_id.split(".", 1)
+        suffixes = entity_suffixes.get(state_domain)
+        if suffixes is None or entity_registry.async_get(state.entity_id) is not None:
+            continue
+        expected_ids = {
+            f"{vacuum_slug}_{suffix}" if suffix else vacuum_slug
+            for suffix in suffixes
+        }
+        if any(
+            object_id == expected or object_id.endswith(f"_{expected}")
+            for expected in expected_ids
+        ):
+            hass.states.async_remove(state.entity_id)
+
     for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
         device = (
             device_registry.async_get(entity.device_id) if entity.device_id else None

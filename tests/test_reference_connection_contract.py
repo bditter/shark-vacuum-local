@@ -190,7 +190,7 @@ def test_area_migration_removes_orphaned_states() -> None:
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "async_remove"
     ]
-    assert len(removals) == 2
+    assert len(removals) == 3
 
     registry_checks = [
         node
@@ -200,3 +200,12 @@ def test_area_migration_removes_orphaned_states() -> None:
         and node.func.attr == "async_get"
     ]
     assert registry_checks, "Stale states must not replace registered entities"
+
+    state_scans = [
+        node
+        for node in ast.walk(migration)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_all"
+    ]
+    assert state_scans, "Cleanup must work after device and registry deletion"
