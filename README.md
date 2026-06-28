@@ -25,9 +25,10 @@ Home Assistant configuration, restart Home Assistant, and add
 **Shark Vacuum Local**
 from Devices & Services.
 
-To change a vacuum's IP address later, open its integration entry menu and
-select **Reconfigure**. The current address is prefilled and the new address is
-tested before the entry is updated and reloaded.
+To change a vacuum's IP address later, open the integration entry and select
+**Configure**. The current address is prefilled and the new address is tested
+before the entry is updated and reloaded. Home Assistant's **Reconfigure**
+entry menu works too, but Configure is the normal place to change the address.
 
 Entity IDs use the configured vacuum name and entity name only. Assigned Home
 Assistant areas are deliberately excluded; for example, a vacuum named
@@ -78,6 +79,17 @@ connection behavior exactly:
 See [PROTOCOL_RESEARCH.md](PROTOCOL_RESEARCH.md) for findings and limitations.
 
 ## Interface probe
+
+If you do not know the current address, scan a likely subnet from another
+machine on the vacuum's LAN:
+
+```powershell
+python .\tools\scan_vacuums.py 10.0.0.0/24
+```
+
+The scanner checks MQTT/1883 and HTTPS/443 and then attempts a read-only
+status call for candidate hosts. It does not publish MQTT commands or start the
+vacuum.
 
 Run the bundled read-only probe from another machine on the vacuum's LAN:
 

@@ -1,7 +1,7 @@
 {
   "domain": "shark_vacuum_local",
   "name": "Shark Vacuum Local",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "documentation": "https://github.com/bditter/shark-vacuum-local",
   "issue_tracker": "https://github.com/bditter/shark-vacuum-local/issues",
   "codeowners": ["@bditter"],

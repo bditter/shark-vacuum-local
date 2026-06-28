@@ -22,7 +22,8 @@
     "error": {
       "cannot_connect": "Could not reach the vacuum at that IP. Make sure it's on and on the same network.",
       "wrong_device": "The new IP belongs to a different vacuum.",
-      "unknown": "Unexpected error talking to the vacuum. Check Home Assistant logs."
+      "unknown": "Unexpected error talking to the vacuum. Check Home Assistant logs.",
+      "already_configured": "This vacuum is already configured."
     },
     "abort": {
       "already_configured": "This vacuum is already configured."
@@ -32,8 +33,9 @@
     "step": {
       "init": {
         "title": "Shark Vacuum Local options",
-        "description": "How often to poll the vacuum for status updates. Faster polling means fresher battery level and quicker response in the UI; slower polling means less network traffic. 30s is the recommended default. Range: 5\u2013600 seconds.",
+        "description": "Update the vacuum IP address and polling interval. The IP address is tested before it is saved. Polling range: 5\u2013600 seconds.",
         "data": {
+          "host": "IP address",
           "scan_interval": "Polling interval (seconds)"
         }
       }

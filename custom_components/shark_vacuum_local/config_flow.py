@@ -13,7 +13,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import CONF_HOST, CONF_NAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 
 from sharklocal import ConnectError, SharklocalError
@@ -71,6 +71,54 @@ def _normalized_identifier(value: str | None) -> str | None:
     if value is None:
         return None
     return "".join(character for character in value.casefold() if character.isalnum())
+
+
+async def _host_update_for_entry(
+    hass: HomeAssistant, entry: ConfigEntry, host: str
+) -> tuple[dict[str, str], str | None]:
+    """Validate a new host and return config-entry data updates."""
+    errors: dict[str, str] = {}
+    mapping = entry.data.get(CONF_MAPPING, DEFAULT_MAPPING)
+    use_mqtt = entry.data.get(CONF_USE_MQTT, DEFAULT_USE_MQTT)
+
+    try:
+        mac = await _probe(host, mapping, use_mqtt)
+    except ConnectError:
+        errors["base"] = "cannot_connect"
+    except SharklocalError:
+        errors["base"] = "unknown"
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Unexpected error probing %s", host)
+        errors["base"] = "unknown"
+    else:
+        old_host = entry.data[CONF_HOST]
+        unique_id = entry.unique_id
+        unique_id_was_host = unique_id is None or unique_id == old_host
+
+        if (
+            mac
+            and not unique_id_was_host
+            and _normalized_identifier(mac) != _normalized_identifier(unique_id)
+        ):
+            errors["base"] = "wrong_device"
+        else:
+            new_unique_id = mac if mac and unique_id_was_host else unique_id
+            duplicate = next(
+                (
+                    candidate
+                    for candidate in hass.config_entries.async_entries(DOMAIN)
+                    if candidate.entry_id != entry.entry_id
+                    and _normalized_identifier(candidate.unique_id)
+                    == _normalized_identifier(new_unique_id)
+                ),
+                None,
+            )
+            if new_unique_id and duplicate:
+                errors["base"] = "already_configured"
+            else:
+                return errors, new_unique_id
+
+    return errors, None
 
 
 class SharkVacuumLocalConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -142,52 +190,15 @@ class SharkVacuumLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
-            mapping = entry.data.get(CONF_MAPPING, DEFAULT_MAPPING)
-            use_mqtt = entry.data.get(CONF_USE_MQTT, DEFAULT_USE_MQTT)
-
-            try:
-                mac = await _probe(host, mapping, use_mqtt)
-            except ConnectError:
-                errors["base"] = "cannot_connect"
-            except SharklocalError:
-                errors["base"] = "unknown"
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Unexpected error probing %s", host)
-                errors["base"] = "unknown"
-            else:
-                old_host = entry.data[CONF_HOST]
-                unique_id = entry.unique_id
-                unique_id_was_host = unique_id is None or unique_id == old_host
-
-                if (
-                    mac
-                    and not unique_id_was_host
-                    and _normalized_identifier(mac)
-                    != _normalized_identifier(unique_id)
-                ):
-                    errors["base"] = "wrong_device"
-                else:
-                    new_unique_id = mac if mac and unique_id_was_host else unique_id
-                    duplicate = next(
-                        (
-                            candidate
-                            for candidate in self.hass.config_entries.async_entries(
-                                DOMAIN
-                            )
-                            if candidate.entry_id != entry.entry_id
-                            and _normalized_identifier(candidate.unique_id)
-                            == _normalized_identifier(new_unique_id)
-                        ),
-                        None,
-                    )
-                    if new_unique_id and duplicate:
-                        errors["base"] = "already_configured"
-                    else:
-                        return self.async_update_reload_and_abort(
-                            entry,
-                            unique_id=new_unique_id,
-                            data_updates={CONF_HOST: host},
-                        )
+            errors, new_unique_id = await _host_update_for_entry(
+                self.hass, entry, host
+            )
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    unique_id=new_unique_id,
+                    data_updates={CONF_HOST: host},
+                )
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -215,18 +226,46 @@ class SharkVacuumLocalOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Show and save the options form."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            host = user_input[CONF_HOST].strip()
+            options = {CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL]}
+
+            if host != self.config_entry.data[CONF_HOST]:
+                errors, new_unique_id = await _host_update_for_entry(
+                    self.hass, self.config_entry, host
+                )
+                if errors:
+                    return self.async_show_form(
+                        step_id="init",
+                        data_schema=self._schema(),
+                        errors=errors,
+                    )
+
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    unique_id=new_unique_id,
+                    data={**self.config_entry.data, CONF_HOST: host},
+                )
+
+            return self.async_create_entry(title="", data=options)
+
+        return self.async_show_form(step_id="init", data_schema=self._schema())
+
+    @callback
+    def _schema(self) -> vol.Schema:
+        """Return the options schema with editable connection settings."""
 
         current = self.config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
-        schema = vol.Schema(
+        return vol.Schema(
             {
+                vol.Required(
+                    CONF_HOST,
+                    default=self.config_entry.data[CONF_HOST],
+                ): str,
                 vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
                     cv.positive_int,
                     vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL),
                 ),
             }
         )
-
-        return self.async_show_form(step_id="init", data_schema=schema)

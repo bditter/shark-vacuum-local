@@ -48,6 +48,21 @@ def test_setup_does_not_eagerly_probe_transport_candidates() -> None:
         assert calls == [], f"Unexpected probe() call in {filename}"
 
 
+def test_options_flow_allows_host_update_from_configure() -> None:
+    """The normal Configure dialog must expose and save the vacuum IP address."""
+    tree = _tree("config_flow.py")
+    options_flow = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and node.name == "SharkVacuumLocalOptionsFlow"
+    )
+    source = ast.unparse(options_flow)
+    assert "CONF_HOST" in source
+    assert "async_update_entry" in source
+    assert "_host_update_for_entry" in source
+
+
 def test_vacuum_start_uses_confirmed_mqtt_level_command() -> None:
     """The captured level command also starts or resumes cleaning."""
     tree = _tree("vacuum.py")
